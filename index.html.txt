@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market AI Analyzer by Andre</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0b0e14; color: #e2e8f0; margin: 0; }
+        .glass-card { background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .glow-button { transition: all 0.3s ease; box-shadow: 0 0 15px rgba(37, 99, 235, 0.2); }
+        .glow-button:hover:not(:disabled) { box-shadow: 0 0 25px rgba(37, 99, 235, 0.4); transform: translateY(-1px); }
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            const [image, setImage] = useState(null);
+            const [base64Image, setBase64Image] = useState("");
+            const [analysis, setAnalysis] = useState("");
+            const [loading, setLoading] = useState(false);
+            const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
+
+            const handleImageChange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    setImage(URL.createObjectURL(file));
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setBase64Image(reader.result.split(',')[1]);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const analyzeChart = async () => {
+                if (!base64Image || !apiKey) return alert("Siapkan API Key dan Gambar!");
+
+                setLoading(true);
+                setAnalysis("");
+
+                const promptText = "Analisa chart ini dengan metode SMC (Smart Money Concepts). Identifikasi BOS, CHOCH, Order Block, dan FVG. Tentukan area BUY/SELL, Stop Loss, dan Take Profit secara teknikal.";
+
+                try {
+                    // Menggunakan model gemini-1.5-flash-latest yang lebih stabil
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+                    
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [
+                                    { text: promptText },
+                                    { inline_data: { mime_type: "image/jpeg", data: base64Image } }
+                                ]
+                            }]
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        setAnalysis(`Eror API: ${data.error.message}\nTips: Pastikan API Key Anda aktif di Google AI Studio.`);
+                    } else {
+                        const aiResponse = data.candidates[0].content.parts[0].text;
+                        setAnalysis(aiResponse);
+                    }
+                } catch (error) {
+                    setAnalysis("Koneksi gagal. Coba lagi nanti.");
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="min-h-screen p-4 md:p-10 flex flex-col items-center">
+                    <div className="w-full max-w-5xl flex justify-between items-center mb-8 glass-card p-6 rounded-3xl">
+                        <h1 className="text-2xl font-bold text-blue-500">Market AI <span className="text-white font-light text-sm">by Andre</span></h1>
+                        <button onClick={() => {
+                            const k = prompt("API Key:");
+                            if(k) { setApiKey(k); localStorage.setItem('gemini_api_key', k); }
+                        }} className="text-xs bg-slate-800 px-4 py-2 rounded-xl border border-slate-700">
+                            {apiKey ? 'API Key OK' : 'Set API Key'}
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full max-w-5xl">
+                        <div className="glass-card p-6 rounded-[2rem] space-y-6">
+                            <div className="relative border-2 border-dashed border-slate-800 rounded-2xl aspect-video flex items-center justify-center overflow-hidden bg-slate-900/30">
+                                {image ? <img src={image} className="w-full h-full object-contain" /> : <p className="text-slate-500">Upload Chart</p>}
+                                <input type="file" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+                            </div>
+                            <button onClick={analyzeChart} disabled={loading || !image} className="w-full py-4 bg-blue-600 rounded-2xl font-bold glow-button disabled:bg-slate-800">
+                                {loading ? "Menganalisa..." : "Mulai Analisa Sekarang"}
+                            </button>
+                        </div>
+
+                        <div className="glass-card p-6 rounded-[2rem] flex flex-col">
+                            <h2 className="text-lg font-semibold mb-4 text-purple-400"><i className="fas fa-robot mr-2"></i>Analysis Result</h2>
+                            <div className="flex-1 bg-black/20 rounded-xl p-4 overflow-y-auto custom-scroll min-h-[300px] text-sm leading-relaxed text-slate-300 whitespace-pre-wrap border border-white/5">
+                                {analysis || "Hasil analisa akan muncul di sini..."}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
