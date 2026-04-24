@@ -13,6 +13,24 @@
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0b0e14; color: #e2e8f0; margin: 0; }
         .glass-card { background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        
+        /* Animasi Hijau Menyala */
+        .status-glow {
+            width: 8px;
+            height: 8px;
+            background-color: #22c55e;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px #22c55e, 0 0 15px #22c55e;
+            animation: pulse-green 2s infinite;
+        }
+
+        @keyframes pulse-green {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
         .custom-scroll::-webkit-scrollbar { width: 5px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
     </style>
@@ -48,7 +66,6 @@
                 setAnalysis("");
 
                 try {
-                    // Menggunakan API v1 (Stable) dan model gemini-1.5-flash
                     const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
                     
                     const response = await fetch(url, {
@@ -80,30 +97,48 @@
 
             return (
                 <div className="min-h-screen p-4 md:p-10 flex flex-col items-center">
+                    {/* Header dengan Indikator Status */}
                     <div className="w-full max-w-5xl flex justify-between items-center mb-8 glass-card p-6 rounded-3xl">
-                        <h1 className="text-2xl font-bold text-blue-500">Market AI <span className="text-white font-light text-sm">by Andre</span></h1>
+                        <div className="flex flex-col">
+                            <h1 className="text-2xl font-bold text-blue-500">Market AI <span className="text-white font-light text-sm">by Andre</span></h1>
+                            <div className="flex items-center gap-2 mt-1">
+                                {apiKey ? (
+                                    <>
+                                        <span className="status-glow"></span>
+                                        <span className="text-[10px] text-green-400 uppercase tracking-widest font-bold">System Connected</span>
+                                    </>
+                                ) : (
+                                    <span className="text-[10px] text-red-500 uppercase tracking-widest font-bold">System Disconnected</span>
+                                )}
+                            </div>
+                        </div>
+                        
                         <button onClick={() => {
                             const k = prompt("Masukkan API Key Gemini:");
                             if(k) { setApiKey(k); localStorage.setItem('gemini_api_key', k); }
-                        }} className="text-xs bg-slate-800 px-4 py-2 rounded-xl border border-slate-700">
-                            {apiKey ? 'API Key Siap' : 'Set API Key'}
+                        }} className={`text-xs px-4 py-2 rounded-xl border transition-all ${apiKey ? 'bg-green-500/10 border-green-500/50 text-green-400' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
+                            <i className={`fas ${apiKey ? 'fa-check-circle' : 'fa-key'} mr-2`}></i>
+                            {apiKey ? 'Update Key' : 'Set API Key'}
                         </button>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full max-w-5xl">
                         <div className="glass-card p-6 rounded-[2rem] space-y-6">
-                            <div className="relative border-2 border-dashed border-slate-800 rounded-2xl aspect-video flex items-center justify-center bg-slate-900/30">
-                                {image ? <img src={image} className="w-full h-full object-contain" /> : <p className="text-slate-500">Pilih Gambar Chart</p>}
+                            <div className="relative border-2 border-dashed border-slate-800 rounded-2xl aspect-video flex items-center justify-center bg-slate-900/30 overflow-hidden">
+                                {image ? <img src={image} className="w-full h-full object-contain" /> : <p className="text-slate-500 italic text-sm text-center px-4">Ketuk di sini untuk unggah gambar chart</p>}
                                 <input type="file" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer" />
                             </div>
-                            <button onClick={analyzeChart} disabled={loading || !image} className="w-full py-4 bg-blue-600 rounded-2xl font-bold disabled:bg-slate-800 transition shadow-lg">
-                                {loading ? "Sedang Menganalisa..." : "Analisa Sekarang"}
+                            <button onClick={analyzeChart} disabled={loading || !image || !apiKey} className="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-bold disabled:bg-slate-800 transition shadow-lg shadow-blue-500/10">
+                                {loading ? "Sedang Menganalisa..." : "Mulai Analisa"}
                             </button>
                         </div>
-                        <div className="glass-card p-6 rounded-[2rem] flex flex-col">
-                            <h2 className="text-lg font-semibold mb-4 text-purple-400">Hasil Analisa</h2>
-                            <div className="flex-1 bg-black/20 rounded-xl p-4 overflow-y-auto custom-scroll min-h-[300px] text-sm text-slate-300 whitespace-pre-wrap border border-white/5">
-                                {analysis || "Hasil akan muncul di sini..."}
+
+                        <div className="glass-card p-6 rounded-[2rem] flex flex-col h-full">
+                            <h2 className="text-sm font-bold mb-4 text-purple-400 uppercase tracking-wider flex items-center gap-2">
+                                <i className="fas fa-microchip"></i> AI Engine Analysis
+                            </h2>
+                            <div className="flex-1 bg-black/20 rounded-xl p-4 overflow-y-auto custom-scroll min-h-[300px] text-sm text-slate-300 whitespace-pre-wrap border border-white/5 leading-relaxed">
+                                {analysis || "Hasil analisa teknikal akan tampil secara otomatis setelah gambar diproses."}
                             </div>
                         </div>
                     </div>
